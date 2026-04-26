@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Value Functions in RL</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{
+    delimiters:[
+      {left:'$$',right:'$$',display:true},
+      {left:'\\(',right:'\\)',display:false}
+    ],
+    throwOnError:false
+  });"></script>
+
+<style>
+/* ── CMU brand tokens ─────────────────────────── */
+:root {
+  --cmu-red:       #C41230;
+  --cmu-red-light: #EF3A47;
+  --cmu-gold:      #FDB515;
+  --cmu-blue-deep: #043673;
+  --cmu-blue-sky:  #007BC0;
+  --cmu-green:     #009647;
+  --cmu-teal:      #008F91;
+}
+
+/* ── DARK theme ─────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:        #0d0f18;
+  --surface:   #161929;
+  --surface2:  #1e2235;
+  --border:    #252840;
+  --text:      #e8eaf6;
+  --muted:     #7b82a0;
+
+  --r:    #c9636b;
+  --r-bg: rgba(201,99,107,0.07);
+  --r-bd: rgba(201,99,107,0.18);
+
+  --o:    #c9a04a;
+  --o-bg: rgba(201,160,74,0.07);
+  --o-bd: rgba(201,160,74,0.18);
+
+  --b:    #7aa8cc;
+  --b-bg: rgba(122,168,204,0.07);
+  --b-bd: rgba(122,168,204,0.18);
+
+  --g:    #5aaa88;
+  --g-bg: rgba(90,170,136,0.07);
+  --g-bd: rgba(90,170,136,0.18);
+
+  --t:    #4eaaa4;
+  --t-bg: rgba(78,170,164,0.07);
+  --t-bd: rgba(78,170,164,0.18);
+}
+
+/* ── LIGHT theme ────────────────────────────────── */
+[data-theme="light"] {
+  --bg:        #EAE6DE;
+  --surface:   #F6F3EC;
+  --surface2:  #EDE9E1;
+  --border:    #CEC9BE;
+  --text:      #1C1816;
+  --muted:     #6B6057;
+
+  --r:    #C41230;
+  --r-bg: rgba(196,18,48,0.07);
+  --r-bd: rgba(196,18,48,0.28);
+
+  --o:    #9B7100;
+  --o-bg: rgba(155,113,0,0.07);
+  --o-bd: rgba(155,113,0,0.28);
+
+  --b:    #043673;
+  --b-bg: rgba(4,54,115,0.07);
+  --b-bd: rgba(4,54,115,0.24);
+
+  --g:    #006B2E;
+  --g-bg: rgba(0,107,46,0.07);
+  --g-bd: rgba(0,107,46,0.26);
+
+  --t:    #006B6E;
+  --t-bg: rgba(0,107,110,0.07);
+  --t-bd: rgba(0,107,110,0.26);
+}
+
+/* ── base ──────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh; width: 100vw;
+  overflow: hidden;
+  transition: background .25s, color .25s;
+}
+
+/* ── slide shell ─────────────────────────────── */
+.deck { width:100%; height:100%; position:relative; }
+
+.slide {
+  display: none;
+  position: absolute; inset: 0;
+  padding: 50px 88px 88px;
+  flex-direction: column;
+  justify-content: center;
+}
+.slide.active { display: flex; }
+
+/* ── badge ─────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: none; border: none;
+  padding: 0;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--r);
+  margin-bottom: 20px; width: fit-content;
+}
+.badge.o { color:var(--o); }
+.badge.b { color:var(--b); }
+.badge.g { color:var(--g); }
+.badge.t { color:var(--t); }
+
+/* ── headings ─────────────────────────────── */
+h1 { font-size: clamp(30px, 4vw, 54px); font-weight: 800; line-height: 1.15; }
+h2 {
+  font-size: clamp(20px, 2.4vw, 36px); font-weight: 700;
+  line-height: 1.25; max-width: 900px; margin-bottom: 28px;
+}
+h2 .r { color: var(--r); }
+h2 .g { color: var(--g); }
+h2 .b { color: var(--b); }
+h2 .o { color: var(--o); }
+h2 .t { color: var(--t); }
+
+p.sub {
+  font-size: 16px; color: var(--muted);
+  line-height: 1.65; max-width: 700px; margin-top: 18px;
+}
+
+/* ── layout ──────────────────────────────── */
+.row { display: flex; gap: 22px; width: 100%; }
+.col { flex: 1; }
+
+/* ── card ────────────────────────────────── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 22px 24px;
+  transition: background .25s, border-color .25s;
+}
+.card.r { border-color: var(--r-bd); }
+.card.g { border-color: var(--g-bd); }
+.card.b { border-color: var(--b-bd); }
+.card.o { border-color: var(--o-bd); }
+.card.t { border-color: var(--t-bd); }
+
+.card-lbl {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px;
+}
+.card-lbl.r { color: var(--r); }
+.card-lbl.g { color: var(--g); }
+.card-lbl.b { color: var(--b); }
+.card-lbl.o { color: var(--o); }
+.card-lbl.t { color: var(--t); }
+
+.card p { font-size: 14px; color: var(--muted); line-height: 1.65; margin-top: 8px; }
+
+/* ── math box ─────────────────────────────── */
+.math-box {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 20px;
+  margin: 12px 0; text-align: center; overflow-x: auto;
+  transition: background .25s;
+}
+.math-box.r { border-color: var(--r-bd); }
+.math-box.g { border-color: var(--g-bd); }
+.math-box.b { border-color: var(--b-bd); }
+.math-box.o { border-color: var(--o-bd); }
+.math-box.t { border-color: var(--t-bd); }
+
+.math-box.r .katex { color: var(--r); }
+.math-box.g .katex { color: var(--g); }
+.math-box.b .katex { color: var(--b); }
+.math-box.o .katex { color: var(--o); }
+.math-box.t .katex { color: var(--t); }
+
+/* dark mode: white interior, black text */
+[data-theme="dark"] .math-box {
+  background: #ffffff;
+}
+[data-theme="dark"] .math-box .katex,
+[data-theme="dark"] .math-box.r .katex,
+[data-theme="dark"] .math-box.g .katex,
+[data-theme="dark"] .math-box.b .katex,
+[data-theme="dark"] .math-box.o .katex,
+[data-theme="dark"] .math-box.t .katex { color: #111111; }
+
+/* light mode: black interior, light text */
+[data-theme="light"] .math-box {
+  background: #111111;
+  border-color: #333333;
+}
+[data-theme="light"] .math-box .katex { color: #f0f0f0; }
+[data-theme="light"] .math-box.r .katex { color: #ff8080; }
+[data-theme="light"] .math-box.g .katex { color: #4ecca0; }
+[data-theme="light"] .math-box.b .katex { color: #80b8f0; }
+[data-theme="light"] .math-box.o .katex { color: #ffd060; }
+[data-theme="light"] .math-box.t .katex { color: #50d0c8; }
+
+/* equation font size */
+.math-box .katex { font-size: 1.25em; }
+
+/* ── comparison table ─────────────────────── */
+table.cmp { width:100%; border-collapse:collapse; font-size:14px; margin-top:8px; }
+table.cmp th {
+  background: var(--surface2);
+  font-size: 10px; letter-spacing:2px; text-transform:uppercase;
+  color: var(--r); padding: 12px 16px;
+  border-bottom: 2px solid var(--r-bd); text-align:left;
+  transition: background .25s;
+}
+table.cmp th.b { color:var(--b); border-color:var(--b-bd); }
+table.cmp td {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  vertical-align: top; transition: border-color .25s;
+}
+table.cmp tr:last-child td { border-bottom:none; }
+table.cmp td.lbl { font-size:12px; font-weight:700; color:var(--muted); }
+
+[data-theme="light"] table.cmp { background: #111111; }
+[data-theme="light"] table.cmp th { background: #1a1a1a; color: #ff8080; border-color: #444; }
+[data-theme="light"] table.cmp th.b { color: #80b8f0; border-color: #444; }
+[data-theme="light"] table.cmp td { color: #e0e0e0; border-color: #333; background: #111111; }
+[data-theme="light"] table.cmp td.lbl { color: #aaaaaa; }
+
+/* ── policy definition grid ──────────────── */
+.policy-def {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 16px; margin-top: 20px;
+}
+.pd-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px 22px;
+  transition: background .25s;
+}
+.pd-card.r { border-color: var(--r-bd); }
+.pd-card.b { border-color: var(--b-bd); }
+.pd-lbl { font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.pd-card.r .pd-lbl { color:var(--r); }
+.pd-card.b .pd-lbl { color:var(--b); }
+.pd-card p { font-size:13.5px; color:var(--muted); line-height:1.6; margin-top:8px; }
+
+/* ── policy transition strip ─────────────── */
+.policy-track { display:flex; align-items:center; margin-top:26px; }
+.pt-node {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius:12px; padding:16px 20px; text-align:center; flex:1;
+  transition: background .25s;
+}
+.pt-node .pt-top  { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
+.pt-node .pt-main { font-size:15px; font-weight:700; }
+.pt-node .pt-eq   { font-size:12px; color:var(--muted); margin-top:5px; }
+.pt-node.r { border-color:var(--r-bd); }
+.pt-node.o { border-color:var(--o-bd); }
+.pt-node.g { border-color:var(--g-bd); }
+.pt-arrow  { font-size:26px; color:var(--muted); padding:0 12px; flex-shrink:0; }
+
+/* ── gamma spectrum ────────────────────── */
+.gamma-track {
+  height:12px; border-radius:6px;
+  background: linear-gradient(to right, var(--r), var(--o) 50%, var(--g));
+  margin:10px 0 6px;
+}
+.gamma-labels { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); }
+
+/* ── probability bars ─────────────────── */
+.prob-row { display:flex; gap:16px; margin-top:22px; }
+.prob-card {
+  flex:1; background:var(--surface);
+  border: 1px solid var(--o-bd);
+  border-radius:12px; padding:20px 16px; text-align:center;
+  transition: background .25s;
+}
+.prob-pct  { font-size:42px; font-weight:800; color:var(--o); line-height:1; }
+.prob-name { font-size:13px; color:var(--muted); margin-top:6px; }
+.prob-bar  { height:6px; border-radius:3px; background:var(--o); margin:12px auto 0; opacity:0.45; }
+
+/* ── gridworld ──────────────────────────── */
+.gridworld {
+  display:grid;
+  grid-template-columns: repeat(4, 70px);
+  grid-template-rows:    repeat(4, 70px);
+  gap:5px;
+}
+.gc {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 9px;
+  display: flex; flex-direction:column;
+  align-items: center; justify-content: center;
+  transition: background .25s, border-color .25s;
+}
+.gc .gv   { font-size:15px; font-weight:700; color:var(--text); }
+.gc .gl   { font-size:10px; color:var(--muted); margin-top:2px; letter-spacing:1px; }
+.gc.v-hi  { background:var(--g-bg); border-color:var(--g-bd); }
+.gc.v-hi  .gv { color:var(--g); }
+.gc.v-mid { background:var(--b-bg); border-color:var(--b-bd); }
+.gc.v-mid .gv { color:var(--b); }
+.gc.v-lo  { background:var(--surface2); }
+.gc.v-lo  .gv { color:var(--muted); }
+.gc.goal  { background:var(--g-bg); border-color:var(--g); }
+.gc.goal  .gv { color:var(--g); font-size:18px; }
+
+/* ── scale cards ────────────────────────── */
+.sc-row { display:flex; gap:20px; margin-top:18px; }
+.sc-card {
+  flex:1; background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px; padding:26px 22px; text-align:center;
+  transition: background .25s;
+}
+.sc-card.r { border-color:var(--r-bd); }
+.sc-card.b { border-color:var(--b-bd); }
+.sc-card .icon { font-size:36px; margin-bottom:12px; }
+.sc-card h4 { font-size:16px; font-weight:700; margin-bottom:8px; }
+.sc-card p  { font-size:13px; color:var(--muted); line-height:1.55; }
+
+/* ── exploration cards ──────────────────── */
+.expl-row { display:flex; gap:18px; margin-top:22px; }
+.expl-card {
+  flex:1; background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:20px 18px; transition: background .25s;
+}
+.expl-card h4 { font-size:14px; font-weight:700; margin-bottom:8px; }
+.expl-card p  { font-size:13px; color:var(--muted); line-height:1.55; }
+.expl-card.r { border-color:var(--r-bd); }
+.expl-card.o { border-color:var(--o-bd); }
+.expl-card.g { border-color:var(--g-bd); }
+
+/* ── title slide (Artemis-inspired) ────────── */
+.title-slide {
+  background: #070709 !important;
+  overflow: hidden;
+  padding: 0 !important;
+  justify-content: flex-end !important;
+  align-items: stretch !important;
+}
+[data-theme="light"] .title-slide { background: #070709 !important; }
+
+.ts-hero {
+  position:absolute; top:0; left:0; right:0; height:68%;
+  overflow:hidden;
+}
+.ts-hero img {
+  width:100%; height:100%;
+  object-fit:cover; object-position:center 30%;
+  display:block;
+}
+.ts-hero-fade {
+  position:absolute; bottom:0; left:0; right:0; height:70%;
+  background: linear-gradient(to bottom, transparent 0%, #070709 100%);
+}
+.ts-hero-side {
+  position:absolute; top:0; left:0; bottom:0; width:30%;
+  background: linear-gradient(to right, #070709 0%, transparent 100%);
+}
+
+.ts-logo-wrap {
+  position:fixed; top:22px; left:36px; z-index:200;
+  background:white; border-radius:5px; padding:4px;
+  line-height:0;
+}
+.ts-cmu-logo { width:58px; height:58px; object-fit:contain; display:block; }
+
+.ts-body { position:relative; z-index:10; padding:0 82px; }
+
+.ts-eyebrow {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-size:10px; letter-spacing:3px; text-transform:uppercase;
+  color:rgba(255,255,255,0.35); margin-bottom:14px;
+}
+.ts-title {
+  font-family: 'Barlow Condensed', system-ui, sans-serif;
+  font-size:clamp(52px,6.2vw,90px); font-weight:900;
+  letter-spacing:0.14em; line-height:1.0;
+  color:rgba(255,255,255,0.82); text-transform:uppercase; margin:0;
+}
+.ts-title em { color:#C41230; font-style:normal; }
+
+.ts-strip {
+  display:flex; align-items:center;
+  border-top:1px solid rgba(255,255,255,0.1);
+  margin-top:28px; padding:20px 0 90px; gap:0;
+}
+.ts-si {
+  flex:1; padding:0 24px;
+  display:flex; flex-direction:column; gap:4px;
+}
+.ts-si:first-child { padding-left:0; }
+.ts-si strong {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-size:9.5px; letter-spacing:2.5px; text-transform:uppercase;
+  color:rgba(255,255,255,0.84); font-weight:700; display:block;
+}
+.ts-si span {
+  font-family: 'Barlow', system-ui, sans-serif;
+  font-size:9px; letter-spacing:0.5px; text-transform:uppercase;
+  color:rgba(255,255,255,0.32);
+}
+.ts-sd { width:1px; height:28px; background:rgba(255,255,255,0.14); flex-shrink:0; }
+
+/* ── section divider ─────────────────────── */
+.divider-slide {
+  align-items:center; justify-content:center; text-align:center;
+  overflow:hidden;
+  background:
+    linear-gradient(rgba(6,6,8,0.74), rgba(6,6,8,0.74)),
+    url('https://i.pinimg.com/1200x/00/7a/49/007a49643280da1db5947e39e5571777.jpg') center/cover no-repeat !important;
+}
+.divider-num   { font-size:88px; font-weight:900; color:rgba(196,18,48,0.30); line-height:1; margin-bottom:-8px; }
+.divider-title { font-size:clamp(24px,3vw,42px); font-weight:800; color:#ffffff; }
+.divider-sub   { font-size:16px; color:rgba(255,255,255,0.5); margin-top:14px; max-width:520px; }
+
+hr.thin { border:none; border-top:1px solid var(--border); margin:14px 0; transition: border-color .25s; }
+
+/* ── theme toggle ───────────────────────── */
+.theme-btn {
+  position:fixed; bottom:26px; left:38px; z-index:200;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:50%; width:36px; height:36px; padding:0;
+  color:var(--muted); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition: background .25s, border-color .25s, color .25s;
+}
+.theme-btn:hover { border-color:var(--r-bd); color:var(--r); }
+.theme-btn svg { width:16px; height:16px; display:block; }
+
+/* ── nav ─────────────────────────────────── */
+nav {
+  position:fixed; bottom:26px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:12px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:999px; padding:8px 20px; z-index:100;
+  transition: background .25s, border-color .25s;
+}
+nav button {
+  background:none; border:none; color:var(--r);
+  font-size:22px; cursor:pointer; padding:0 4px; line-height:1;
+}
+nav button:disabled { color:var(--border); cursor:default; }
+#slide-counter { font-size:12px; color:var(--muted); min-width:52px; text-align:center; }
+
+/* ── dots ───────────────────────────────── */
+.dots {
+  position:fixed; top:26px; right:38px;
+  display:flex; gap:7px; flex-wrap:wrap;
+  max-width:200px; justify-content:flex-end;
+}
+.dot { width:6px; height:6px; border-radius:50%; background:var(--border); transition:background .2s; cursor:pointer; flex-shrink:0; }
+.dot.on { background:var(--r); }
+
+/* ── speaker note ───────────────────────── */
+.note-btn {
+  position:fixed; bottom:26px; right:38px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:999px; padding:7px 14px;
+  font-size:11px; color:var(--muted); cursor:pointer;
+  transition: background .25s;
+}
+.speaker-note {
+  display:none; position:fixed; bottom:70px;
+  left:50%; transform:translateX(-50%);
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:12px; padding:14px 22px;
+  font-size:13px; color:var(--muted); max-width:680px;
+  line-height:1.65; z-index:200; transition: background .25s;
+}
+.speaker-note.on { display:block; }
+</style>
+</head>
+<body>
+
+<!-- CMU logo: fixed across all slides -->
+<div class="ts-logo-wrap">
+  <img class="ts-cmu-logo"
+       src="https://live-cmu-brand.pantheonsite.io/sites/default/files/cmu-brand-files/inline-images/Router%20Grid%20Image%20%2888%29_0.png"
+       alt="Carnegie Mellon University">
+</div>
+
+<button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+  <span id="theme-icon">
+    <!-- sun icon (dark mode: click to go light) -->
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="2"  x2="12" y2="4"/>
+      <line x1="12" y1="20" x2="12" y2="22"/>
+      <line x1="4.22" y1="4.22"   x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="2"  y1="12" x2="4"  y2="12"/>
+      <line x1="20" y1="12" x2="22" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  </span>
+</button>
+
+<div class="deck">
+
+<!-- ══ TITLE ══════════════════════════════════════ -->
+<div class="slide title-slide active"
+  data-note="Welcome to 10-703 Deep Reinforcement Learning at Carnegie Mellon University. This lecture introduces value functions, the mathematical backbone of every modern RL algorithm.">
+
+  <!-- Hero photo -->
+  <div class="ts-hero">
+    <img src="https://i.pinimg.com/1200x/6b/96/09/6b9609729fd635e8583bb687dd58feed.jpg" alt="">
+    <div class="ts-hero-fade"></div>
+    <div class="ts-hero-side"></div>
+  </div>
+
+  <!-- Bottom content -->
+  <div class="ts-body">
+    <p class="ts-eyebrow">18-461/18-661 · Intro to ML for Engineers · Carnegie Mellon University</p>
+    <h1 class="ts-title">REINFORCEMENT<br>LEARNING</h1>
+    <div class="ts-strip">
+      <div class="ts-si">
+        <strong>Introduction</strong>
+        <span>Value Functions</span>
+      </div>
+      <div class="ts-sd"></div>
+      <div class="ts-si">
+        <strong>18-461/18-661</strong>
+        <span>Intro to ML for Engineers</span>
+      </div>
+      <div class="ts-sd"></div>
+      <div class="ts-si">
+        <strong>Carnegie Mellon</strong>
+        <span>School of Computer Science</span>
+      </div>
+      <div class="ts-sd"></div>
+      <div class="ts-si">
+        <strong>Spring 2026</strong>
+        <span>Pittsburgh, PA</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ §1 DIVIDER ══════════════════════════════════ -->
+<div class="slide divider-slide"
+  data-note="Section 1 introduces the two fundamental value functions that every RL algorithm relies on.">
+  <div class="divider-num">1</div>
+  <div class="divider-title">Core Definitions</div>
+  <p class="divider-sub">The Value Function · State-Value \(V\) · Action-Value \(Q\)</p>
+</div>
+
+<!-- ── 1-A: Value function vs reward ──────────────── -->
+<div class="slide"
+  data-note="Rewards are immediate. A positive reward at the current step can still represent the worst possible move if it leads to a dead end. Value functions encode the full future.">
+  <div class="badge">Section 1 · Core Definitions</div>
+  <h2>A reward measures the <span class="r">current step</span>; a value function measures the <span class="g">entire future</span></h2>
+  <div class="row">
+    <div class="card r col">
+      <div class="card-lbl r">Reward signal</div>
+      <div class="math-box r">$$r_t$$</div>
+      <p>The reward signal captures immediate feedback only. It provides no information about future consequences of the current action.</p>
+    </div>
+    <div class="card g col">
+      <div class="card-lbl g">Discounted total reward (class slide 19)</div>
+      <div class="math-box g">$$R(\infty) = \sum_{t=0}^{\infty} \mathbb{E}\!\left[\gamma^t r(a(t), s(t))\right]$$</div>
+      <p>The discounted total reward accumulates all future rewards, weighted by \(\gamma^t\). The value function is the expected value of this quantity from a given state.</p>
+    </div>
+  </div>
+  <p class="sub">Because the optimal policy maximises total future reward rather than immediate reward, the value function is the correct objective for agent decision-making.</p>
+</div>
+
+<!-- ── 1-B: V(s) ───────────────────────────────── -->
+<div class="slide"
+  data-note="V-pi evaluates how much return the agent can expect if it starts in state s and follows policy pi. It does not tell the agent which action to take.">
+  <div class="badge">Section 1 · Core Definitions</div>
+  <h2>The state-value function <span class="r">\(V_\pi(s)\)</span> gives the expected return from each state under policy \(\pi\)</h2>
+  <div class="row" style="align-items:stretch;">
+    <div class="card r col" style="flex:1.3;">
+      <div class="card-lbl r">Definition (class slide 28)</div>
+      <div class="math-box r">$$V_\pi(s) = \mathbb{E}_{a \sim \pi(s),\, P,\, r}\!\left[\sum_{t=0}^{\infty} \gamma^t r\!\left(a(t),s(t)\right) \;\middle|\; s(0) = s\right]$$</div>
+      <hr class="thin">
+      <p>The expectation is taken over the stochastic policy, the transition dynamics, and the reward function.</p>
+      <p style="margin-top:8px;">Due to the Markov property, the optimal policy at any time is a function of the current state alone.</p>
+    </div>
+    <div class="col" style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="card">
+        <div class="card-lbl">Gridworld analogy</div>
+        <p>A cell located one step from the goal carries high value regardless of the path taken to reach it.</p>
+      </div>
+      <div class="card r">
+        <div class="card-lbl r">What \(V_\pi(s)\) does not provide</div>
+        <p>The state-value function evaluates positions. It does not specify which action to take. That is the role of \(Q_\pi(s,a)\).</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 1-C: Q(s,a) ─────────────────────────────── -->
+<div class="slide"
+  data-note="Q extends V by incorporating the action dimension. It evaluates a specific action at a state, then follows the policy. This enables off-policy learning.">
+  <div class="badge o">Section 1 · Core Definitions</div>
+  <h2>The action-value function <span class="o">\(Q_\pi(a,s)\)</span> evaluates a specific action taken at a given state</h2>
+  <div class="row" style="align-items:stretch;">
+    <div class="card o col" style="flex:1.3;">
+      <div class="card-lbl o">Definition (class slide 30)</div>
+      <div class="math-box o">$$Q_\pi(a,s) = \mathbb{E}\!\left[r(a,s) + \sum_{t=1}^{\infty} \gamma^t r\!\left(\pi(s(t)),s(t)\right) \;\middle|\; s(0)=s,\; a(0)=a\right]$$</div>
+      <hr class="thin">
+      <p>The agent commits to action \(a\) at the current step and follows policy \(\pi\) from the next state onward.</p>
+    </div>
+    <div class="col" style="flex:1; display:flex; flex-direction:column; gap:14px;">
+      <div class="card o">
+        <div class="card-lbl o">Why Q is critical for action selection</div>
+        <p>\(Q_\pi(a,s)\) is critical for choosing between different actions in the same state. Because the action is built into the input, the agent does not need to know the transition model \(P(s'|s,a)\) to select the best move.</p>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Relationship to \(V_\pi\)</div>
+        <div class="math-box b" style="margin:8px 0 4px;">$$V_\pi(s) = \sum_a \pi(a|s)\; Q_\pi(a,s)$$</div>
+        <p style="font-size:13px;">The state value equals the expected action value under \(\pi\).</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 1-D: V vs Q table ───────────────────────── -->
+<div class="slide"
+  data-note="This comparison clarifies when to use each function. Q is the more practically useful of the two because it does not require a model of the transition dynamics to act.">
+  <div class="badge">Section 1 · Core Definitions</div>
+  <h2>\(V_\pi\) evaluates <span class="r">positions</span>; \(Q_\pi\) evaluates <span class="o">actions</span> at those positions</h2>
+  <table class="cmp">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>State-value \(V_\pi(s)\)</th>
+        <th class="b">Action-value \(Q_\pi(a,s)\)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="lbl">Input</td>
+          <td>State \(s\) only</td>
+          <td>State \(s\) and action \(a\)</td></tr>
+      <tr><td class="lbl">Question answered</td>
+          <td>"How desirable is it to be in this state?"</td>
+          <td>"How good is this specific action in this state?"</td></tr>
+      <tr><td class="lbl">Critical for choosing actions?</td>
+          <td>No — does not distinguish between actions at the same state</td>
+          <td>Yes — directly compares actions; critical for decision-making</td></tr>
+      <tr><td class="lbl">Requires transition model to act?</td>
+          <td>Yes — must compute \(\sum_{s'} P(s'|s,a)\) to find the best action</td>
+          <td>No — action is built in; simply take \(\arg\max_a Q^*(a,s)\)</td></tr>
+      <tr><td class="lbl">Typical use</td>
+          <td>Actor-Critic (Critic component)</td>
+          <td>Q-Learning, DQN, SARSA</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── 1-E: Two ways V relates to Q ───────────────── -->
+<div class="slide"
+  data-note="Both equations are correct and describe different situations. The summation form applies during evaluation under any policy; the max form applies during control under the optimal policy. Students often confuse these, so the analogy helps.">
+  <div class="badge">Section 1 · Core Definitions</div>
+  <h2>Both forms are correct and apply in <span class="r">different situations</span></h2>
+
+  <div class="row" style="gap:22px; margin-top:4px; align-items:stretch;">
+
+    <div class="card col" style="border-color:var(--b-bd);">
+      <div class="card-lbl b">Form 1 · Policy evaluation</div>
+      <div class="math-box b">$$V_\pi(s) = \sum_a \pi(a|s)\; Q_\pi(a,s)$$</div>
+      <p><strong>When to use it:</strong> the agent follows a stochastic policy, such as the 50/50 example.</p>
+      <p>The value of the state is the average of all action values, weighted by how likely the agent is to take each action.</p>
+      <div class="card" style="margin-top:14px; background:var(--surface2);">
+        <div class="card-lbl">Restaurant analogy</div>
+        <p>You pick a dish at random. The value of your meal is the average quality across everything on the menu, weighted by how often you order each dish.</p>
+      </div>
+    </div>
+
+    <div class="card col" style="border-color:var(--g-bd);">
+      <div class="card-lbl g">Form 2 · Optimal control</div>
+      <div class="math-box g">$$V^*(s) = \max_a\; Q^*(a,s)$$</div>
+      <p><strong>When to use it:</strong> the agent follows the optimal policy \(\pi^*\).</p>
+      <p>The value of the state is the value of the single best action available. All suboptimal actions are ignored.</p>
+      <div class="card" style="margin-top:14px; background:var(--surface2);">
+        <div class="card-lbl">Restaurant analogy</div>
+        <p>You know exactly which dish is best. The value of your meal is the quality of that one dish alone — the rest of the menu is irrelevant.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <table class="cmp" style="margin-top:20px;">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>Summation \(\sum\)</th>
+        <th class="b">Maximum \(\max\)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="lbl">Policy type</td><td>Any policy \(\pi\)</td><td>Optimal policy \(\pi^*\)</td></tr>
+      <tr><td class="lbl">Agent goal</td><td>Evaluation — measure current behaviour</td><td>Control — find the best possible path</td></tr>
+      <tr><td class="lbl">Logic</td><td>"What will I likely get?"</td><td>"What is the most I can get?"</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══ §2 DIVIDER ══════════════════════════════════ -->
+<div class="slide divider-slide"
+  data-note="Section 2 introduces the policy, the agent's decision rule, and distinguishes stochastic from deterministic policies.">
+  <div class="divider-num">2</div>
+  <div class="divider-title">Policy Fundamentals</div>
+  <p class="divider-sub">What is a Policy · Stochastic · Deterministic vs Stochastic</p>
+</div>
+
+<!-- ── 2-A: What is a policy ─────────────────────── -->
+<div class="slide"
+  data-note="The policy is the agent's complete decision rule. All other RL components exist to find or improve a policy. The class slide defines it as a map from S to A.">
+  <div class="badge t">Section 2 · Policy Fundamentals</div>
+  <h2>A policy \(\pi\) is the agent's <span class="t">decision rule</span>: a mapping from every state to an action or a distribution over actions</h2>
+  <div class="policy-def">
+    <div class="pd-card r">
+      <div class="pd-lbl">Deterministic policy (class slide 19)</div>
+      <div class="math-box r" style="margin:10px 0;">$$\pi: S \to A \qquad \pi(s) = a$$</div>
+      <p>The policy assigns a single action to each state with certainty. There is no randomness in the selection.</p>
+    </div>
+    <div class="pd-card b">
+      <div class="pd-lbl">Stochastic policy (class slide 19)</div>
+      <div class="math-box b" style="margin:10px 0;">$$\pi(a \mid s) = P(A_t = a \mid S_t = s)$$</div>
+      <p>The policy specifies a probability distribution over actions given state \(s\). The agent samples from this distribution to select the next action.</p>
+    </div>
+    <div class="pd-card" style="grid-column:1/-1; border-color:var(--o-bd);">
+      <div class="pd-lbl" style="color:var(--o);">Goal (class slide 29)</div>
+      <div class="row" style="gap:30px; margin-top:4px; align-items:center;">
+        <p style="flex:1; font-size:13.5px;">Every RL algorithm searches for the optimal policy \(\pi^*\) that maximises the state-value function \(V_\pi(s)\) for all states. Value functions are instruments for evaluating and improving the policy.</p>
+        <div class="math-box o" style="flex:1; margin:0;">$$\pi^* = \arg\max_\pi V_\pi(s) \quad \forall s \in S$$</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 2-B: Stochastic policy example ────────────── -->
+<div class="slide"
+  data-note="A uniform stochastic policy is the simplest case: both actions receive equal probability. V(s) then becomes the average of both action values.">
+  <div class="badge o">Section 2 · Policy Fundamentals</div>
+  <h2>A stochastic policy assigns a <span class="o">probability distribution</span> over actions rather than a single fixed choice</h2>
+  <div class="row" style="align-items:flex-start;">
+    <div class="col" style="flex:1.2;">
+      <div class="card o">
+        <div class="card-lbl o">Example: uniform exploration policy</div>
+        <div class="math-box o">$$\pi(a \mid s) = \begin{cases} 0.5 & \text{if } a = 1 \\ 0.5 & \text{if } a = 2 \end{cases}$$</div>
+        <p>This represents a uniform random strategy, applied when the agent has not yet determined which action yields a higher return.</p>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div class="card-lbl">Implied state-value</div>
+        <div class="math-box r">$$V_\pi(s) = 0.5 \cdot Q_\pi(1,s)\;+\;0.5 \cdot Q_\pi(2,s)$$</div>
+        <p style="font-size:13px;">As the agent accumulates experience, the policy shifts weight toward the action with the higher Q-value.</p>
+      </div>
+    </div>
+    <div class="col" style="flex:0.8; display:flex; flex-direction:column; gap:12px;">
+      <div class="prob-card">
+        <div class="prob-pct">50%</div>
+        <div class="prob-name">Action 1</div>
+        <div class="prob-bar" style="width:50%; margin:10px auto 0;"></div>
+      </div>
+      <div class="prob-card">
+        <div class="prob-pct">50%</div>
+        <div class="prob-name">Action 2</div>
+        <div class="prob-bar" style="width:50%; margin:10px auto 0;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 2-C: Deterministic vs Stochastic ──────────── -->
+<div class="slide"
+  data-note="As Q-values diverge through training, the policy concentrates probability on the higher-valued action. A fully deterministic policy is the theoretical limit.">
+  <div class="badge t">Section 2 · Policy Fundamentals</div>
+  <h2>Policies shift from <span class="r">stochastic exploration</span> toward <span class="g">deterministic exploitation</span> as Q-values improve</h2>
+  <div class="policy-track">
+    <div class="pt-node r">
+      <div class="pt-top">early training</div>
+      <div class="pt-main" style="color:var(--r);">Stochastic</div>
+      <div class="pt-eq">\(\pi(a_1|s)=\pi(a_2|s)=0.5\)</div>
+    </div>
+    <div class="pt-arrow">→</div>
+    <div class="pt-node o">
+      <div class="pt-top">mid training</div>
+      <div class="pt-main" style="color:var(--o);">\(\varepsilon\)-Greedy</div>
+      <div class="pt-eq">\(\pi(a^*|s)=1{-}\varepsilon,\text{ rest }\varepsilon\)</div>
+    </div>
+    <div class="pt-arrow">→</div>
+    <div class="pt-node g">
+      <div class="pt-top">converged</div>
+      <div class="pt-main" style="color:var(--g);">Deterministic</div>
+      <div class="pt-eq">\(\pi(s) = \arg\max_a Q^*(a,s)\)</div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:20px; gap:16px;">
+    <div class="card r col">
+      <div class="card-lbl r">Why begin with a stochastic policy?</div>
+      <p>An agent that always selects the same action cannot discover that an alternative action yields a higher return. Stochastic behaviour drives exploration of the state space.</p>
+    </div>
+    <div class="card g col">
+      <div class="card-lbl g">Why converge to a deterministic policy?</div>
+      <p>For tabular MDPs, there always exists a deterministic optimal policy (class slide 31). Once \(Q^*\) is known, randomness reduces performance.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ §3 DIVIDER ══════════════════════════════════ -->
+<div class="slide divider-slide"
+  data-note="Section 3 develops the Bellman equations, which are the foundation of all value-based RL algorithms.">
+  <div class="divider-num">3</div>
+  <div class="divider-title">The Bellman Equation</div>
+  <p class="divider-sub">Recursive Decomposition · MDP Forms · Discount Factor \(\gamma\)</p>
+</div>
+
+<!-- ── 3-A: Bellman decomposition ────────────────── -->
+<div class="slide"
+  data-note="The key step is the decomposition of V(s) into an immediate reward term and a discounted continuation. This recursive relationship is the Bellman equation and is the basis for iterative solution methods.">
+  <div class="badge">Section 3 · The Bellman Equation</div>
+  <h2>The value function satisfies a <span class="r">recursive decomposition</span> into immediate reward and discounted future value</h2>
+  <div class="row" style="align-items:stretch; margin-top:4px;">
+    <div class="card r col" style="flex:1.1;">
+      <div class="card-lbl r">Derivation (class slide 34)</div>
+      <div class="math-box r">$$V(s) = \mathbb{E}\!\left[r_0 + \gamma r_1 + \gamma^2 r_2 + \cdots \;\middle|\; s_0 = s\right]$$</div>
+      <div class="math-box" style="margin-top:0;">$$= \mathbb{E}\!\left[r(s)\right] + \gamma \,\mathbb{E}_{s' \sim P(\cdot|s_0=s)}\!\left[V(s')\right]$$</div>
+      <p style="margin-top:10px;">The value decomposes into two components: the expected immediate reward \(\mathbb{E}[r(s)]\) and the discounted expected value of the successor state \(\gamma\,\mathbb{E}[V(s')]\).</p>
+    </div>
+    <div class="card col" style="flex:0.9; display:flex; flex-direction:column; gap:14px;">
+      <div class="card b" style="flex:1;">
+        <div class="card-lbl b">Matrix form (class slide 35)</div>
+        <div class="math-box b">$$\mathbf{V} = \mathbf{r} + \gamma \mathbf{P}\mathbf{V}$$</div>
+        <p>This yields a linear system solvable by matrix inversion:</p>
+        <div class="math-box b" style="margin-top:8px;">$$\mathbf{V} = (I - \gamma \mathbf{P})^{-1}\mathbf{r}$$</div>
+        <p style="font-size:13px;">Computational complexity is \(O(n^3)\) for \(n\) states.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 3-B: Bellman equations for MDP ────────────── -->
+<div class="slide"
+  data-note="In an MDP the policy introduces an additional summation over actions. These two equations together define policy evaluation and are the basis for both value iteration and policy iteration.">
+  <div class="badge">Section 3 · The Bellman Equation</div>
+  <h2>The Bellman equations for an MDP relate <span class="r">\(V_\pi\)</span> and <span class="o">\(Q_\pi\)</span> through the policy and transition dynamics</h2>
+  <div class="row" style="align-items:stretch; margin-top:4px;">
+    <div class="card r col">
+      <div class="card-lbl r">Bellman equation for \(V_\pi\) (class slide 38)</div>
+      <div class="math-box r">$$V_\pi(s) = \sum_{a \in \mathcal{A}} \pi(a|s)\; Q_\pi(a,s)$$</div>
+      <p>The state value is the expectation of the action value under the current policy.</p>
+    </div>
+    <div class="card o col">
+      <div class="card-lbl o">Bellman equation for \(Q_\pi\) (class slide 38)</div>
+      <div class="math-box o">$$Q_\pi(a,s) = \mathbb{E}\!\left[r(a,s)\right] + \gamma \sum_{s' \in \mathcal{S}} P(s'|s,a)\,V_\pi(s')$$</div>
+      <p>The action value equals the immediate reward plus the discounted value of the resulting state.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px; border-color:var(--b-bd);">
+    <div class="card-lbl b">Combined form</div>
+    <div class="math-box b">$$V_\pi(s) = \mathbb{E}\!\left[r(a,s)\right] + \gamma \sum_a \pi(a|s) \sum_{s'} P(s'|s,a)\,V_\pi(s')$$</div>
+    <p style="font-size:13px;">Substituting the \(Q_\pi\) equation into the \(V_\pi\) equation gives the full Bellman expectation equation for an MDP.</p>
+  </div>
+</div>
+
+<!-- ── 3-C: Discount factor γ ─────────────────────── -->
+<div class="slide"
+  data-note="The key intuition: gamma controls how quickly reward weights decay over time. Close to 0, only the very next reward matters. Close to 1, rewards 10 steps away are nearly as valuable as immediate ones.">
+  <div class="badge o">Section 3 · The Bellman Equation</div>
+  <h2>\(\gamma \in [0,1]\) sets how quickly the <span class="o">weight</span> of a reward decays with time</h2>
+
+  <div class="math-box" style="margin:16px 0 20px; max-width:580px; text-align:left; padding:14px 24px;">
+    $$R(\infty) = \sum_{t=0}^{\infty} \gamma^t\, \mathbb{E}\!\left[r(a(t),s(t))\right]$$
+    <p style="font-size:13px; color:var(--muted); margin-top:8px;">The weight of a reward at step \(t\) is \(\gamma^t\). As \(t\) grows, this weight shrinks — faster for small \(\gamma\), slowly for \(\gamma\) near 1.</p>
+  </div>
+
+  <div class="row" style="gap:32px; align-items:flex-start;">
+
+    <!-- γ ≈ 0 column -->
+    <div style="flex:1;">
+      <div style="font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--r); margin-bottom:14px;">\(\gamma = 0.1\) · Myopic</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:12px; color:var(--muted); width:24px;">t=0</span>
+          <div style="height:22px; width:100%; background:var(--r); border-radius:4px; opacity:0.85;"></div>
+          <span style="font-size:12px; color:var(--muted); width:36px;">1.000</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:12px; color:var(--muted); width:24px;">t=1</span>
+          <div style="height:22px; width:10%; background:var(--r); border-radius:4px; opacity:0.85;"></div>
+          <span style="font-size:12px; color:var(--muted); width:36px;">0.100</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:12px; color:var(--muted); width:24px;">t=2</span>
+          <div style="height:22px; width:1%; min-width:4px; background:var(--r); border-radius:4px; opacity:0.85;"></div>
+          <span style="font-size:12px; color:var(--muted); width:36px;">0.010</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:12px; color:var(--muted); width:24px;">t=3</span>
+          <div style="height:22px; width:1%; min-width:3px; background:var(--r); border-radius:4px; opacity:0.4;"></div>
+          <span style="font-size:12px; color:var(--muted); width:36px;">≈ 0</span>
+        </div>
+      </div>
+      <div class="card r" style="margin-top:18px; padding:16px 18px;">
+        <p>Future rewards are discounted to near zero within a few steps. The agent acts as if only the immediate reward matters.</p>
+      </div>
+    </div>
+
+    <!-- divider -->
+    <div style="width:1px; background:var(--border); align-self:stretch;"></div>
+
+    <!-- γ ≈ 1 column -->
+    <div style="flex:1;">
+      <div style="font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--g); margin-bottom:14px;">\(\gamma = 0.95\) · Far-sighted</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:12px; color:var(--muted); width:24px;">t=0</span>
+          <div style="height:22px; width:100%; background:var(--g); border-radius:4px; opacity:0.75;"></div>
+          <span style="font-size:12px; color:var(--muted); width:36px;">1.000</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:12px; color:var(--muted); width:24px;">t=1</span>
+          <div style="height:22px; width:95%; background:var(--g); border-radius:4px; opacity:0.75;"></div>
+          <span style="font-size:12px; color:var(--muted); width:36px;">0.950</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:12px; color:var(--muted); width:24px;">t=2</span>
+          <div style="height:22px; width:90%; background:var(--g); border-radius:4px; opacity:0.75;"></div>
+          <span style="font-size:12px; color:var(--muted); width:36px;">0.902</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:12px; color:var(--muted); width:24px;">t=3</span>
+          <div style="height:22px; width:86%; background:var(--g); border-radius:4px; opacity:0.75;"></div>
+          <span style="font-size:12px; color:var(--muted); width:36px;">0.857</span>
+        </div>
+      </div>
+      <div class="card g" style="margin-top:18px; padding:16px 18px;">
+        <p>Rewards several steps ahead retain most of their weight. The agent plans across longer time horizons before acting.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── 3-D: Discount factor example ──────────────── -->
+<div class="slide"
+  data-note="Same trajectory, same rewards — only gamma changes. With low gamma the distant +1 barely registers; with high gamma it dominates the return and motivates the agent to plan toward it.">
+  <div class="badge o">Section 3 · The Bellman Equation</div>
+  <h2>Same trajectory, different <span class="o">\(\gamma\)</span>: the total return changes dramatically</h2>
+
+  <p style="font-size:14px; color:var(--muted); margin-bottom:20px;">
+    An agent takes 3 steps with cost \(-0.04\) each, then reaches the goal for \(+1\). (Class slide 39 example.)
+  </p>
+
+  <!-- trajectory strip -->
+  <div style="display:flex; align-items:center; gap:0; margin-bottom:28px;">
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; text-align:center; min-width:80px;">
+      <div style="font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;">t = 0</div>
+      <div style="font-size:16px; font-weight:700; color:var(--r);">−0.04</div>
+    </div>
+    <div style="font-size:20px; color:var(--border); padding:0 8px;">→</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; text-align:center; min-width:80px;">
+      <div style="font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;">t = 1</div>
+      <div style="font-size:16px; font-weight:700; color:var(--r);">−0.04</div>
+    </div>
+    <div style="font-size:20px; color:var(--border); padding:0 8px;">→</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; text-align:center; min-width:80px;">
+      <div style="font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;">t = 2</div>
+      <div style="font-size:16px; font-weight:700; color:var(--r);">−0.04</div>
+    </div>
+    <div style="font-size:20px; color:var(--border); padding:0 8px;">→</div>
+    <div style="background:var(--g-bg); border:1px solid var(--g-bd); border-radius:10px; padding:14px 18px; text-align:center; min-width:80px;">
+      <div style="font-size:10px; color:var(--g); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;">t = 3</div>
+      <div style="font-size:16px; font-weight:700; color:var(--g);">+1.00</div>
+    </div>
+    <div style="font-size:20px; color:var(--border); padding:0 8px;">→</div>
+    <div style="background:var(--g-bg); border:1px solid var(--g-bd); border-radius:10px; padding:14px 18px; text-align:center; min-width:80px;">
+      <div style="font-size:14px; color:var(--g);">Goal ★</div>
+    </div>
+  </div>
+
+  <div class="row" style="gap:24px;">
+
+    <div class="card r col">
+      <div class="card-lbl r">\(\gamma = 0.1\) · The +1 reward barely registers</div>
+      <div class="math-box" style="text-align:left; padding:14px 18px; margin:12px 0;">
+        <div style="font-size:13px; line-height:2; color:#1a1a1a;">
+          \(R = (-0.04)\cdot 1\)&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;\(= -0.040\)<br>
+          \(\phantom{R}+ (-0.04)\cdot 0.1\)&emsp;&emsp;&emsp;&ensp;\(= -0.004\)<br>
+          \(\phantom{R}+ (-0.04)\cdot 0.01\)&emsp;&emsp;&ensp;\(= -0.000\)<br>
+          \(\phantom{R}+ (1.00)\cdot 0.001\)&emsp;&emsp;\(= +0.001\)
+        </div>
+        <div style="border-top:1px solid #ccc; margin-top:10px; padding-top:10px; font-weight:700; font-size:15px; color:#C41230;">\(R \approx -0.043\)</div>
+      </div>
+      <p>The goal reward at \(t=3\) contributes almost nothing. The agent perceives this trajectory as a net loss and has no incentive to plan toward the goal.</p>
+    </div>
+
+    <div class="card g col">
+      <div class="card-lbl g">\(\gamma = 0.95\) · The +1 reward dominates</div>
+      <div class="math-box" style="text-align:left; padding:14px 18px; margin:12px 0;">
+        <div style="font-size:13px; line-height:2; color:#1a1a1a;">
+          \(R = (-0.04)\cdot 1\)&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;\(= -0.040\)<br>
+          \(\phantom{R}+ (-0.04)\cdot 0.95\)&emsp;&emsp;&ensp;\(= -0.038\)<br>
+          \(\phantom{R}+ (-0.04)\cdot 0.902\)&emsp;&ensp;\(= -0.036\)<br>
+          \(\phantom{R}+ (1.00)\cdot 0.857\)&emsp;&emsp;\(= +0.857\)
+        </div>
+        <div style="border-top:1px solid #ccc; margin-top:10px; padding-top:10px; font-weight:700; font-size:15px; color:#006B2E;">\(R \approx +0.743\)</div>
+      </div>
+      <p>The goal reward at \(t=3\) retains 86% of its value. The agent correctly identifies this as a high-return trajectory and plans to reach the goal.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ §4 DIVIDER ══════════════════════════════════ -->
+<div class="slide divider-slide"
+  data-note="Section 4 addresses optimality: how to find the policy that maximises V across all states.">
+  <div class="divider-num">4</div>
+  <div class="divider-title">Optimal Decision Making</div>
+  <p class="divider-sub">Bellman Optimality · Greedification · Value and Policy Iteration</p>
+</div>
+
+<!-- ── 4-A: Bellman optimality ───────────────────── -->
+<div class="slide"
+  data-note="The Bellman optimality equations replace the policy expectation with a maximisation. Once V* or Q* is known, the optimal policy follows directly by greedy action selection.">
+  <div class="badge g">Section 4 · Optimal Decision Making</div>
+  <h2>Bellman optimality replaces the policy <span class="o">expectation</span> with a <span class="g">maximisation</span> over actions</h2>
+  <div class="row" style="align-items:stretch; margin-top:4px;">
+    <div class="card col">
+      <div class="card-lbl o">Bellman expectation (any \(\pi\))</div>
+      <div class="math-box o">$$V_\pi(s) = \sum_a \pi(a|s)\sum_{s'} P(s'|s,a)\!\left[r + \gamma V_\pi(s')\right]$$</div>
+    </div>
+    <div class="card g col">
+      <div class="card-lbl g">Bellman optimality (class slide 31)</div>
+      <div class="math-box g">$$V^*(s) = \max_a \sum_{s'} P(s'|s,a)\!\left[r + \gamma V^*(s')\right]$$</div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:18px; gap:18px;">
+    <div class="card g col">
+      <div class="card-lbl g">Greedification of \(Q^*\) yields \(\pi^*\) (class slide 31)</div>
+      <div class="math-box g">$$\pi^*(s) = \arg\max_a\; Q^*(a,s) \qquad V^*(s) = V_{\pi^*}(s)$$</div>
+      <p>For tabular MDPs, a deterministic optimal policy always exists. Selecting the highest \(Q^*\) value at each state is sufficient for global optimality.</p>
+    </div>
+    <div class="card b col">
+      <div class="card-lbl b">Why \(Q^*\) is easier to act on than \(V^*\)</div>
+      <p>Maximising \(V^*(s)\) requires knowing the transition model \(P(s'|s,a)\) to determine which action leads to which next state.</p>
+      <p style="margin-top:8px;">With \(Q^*\), the action is already built into the function. The agent does not need to know the environment's dynamics and simply selects:</p>
+      <div class="math-box b" style="margin-top:8px;">$$\pi^*(s) = \arg\max_a\; Q^*(a,s)$$</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 4-B: One-step lookahead ───────────────────── -->
+<div class="slide"
+  data-note="This is the central insight: V* already encodes the full future through recursion. A one-step greedy decision with respect to V* is therefore globally optimal.">
+  <div class="badge g">Section 4 · Optimal Decision Making</div>
+  <h2>A single greedy step with respect to <span class="g">\(V^*\)</span> is globally optimal because \(V^*\) encodes the complete future</h2>
+  <div class="row" style="align-items:flex-start; margin-top:6px;">
+    <div class="col" style="flex:1.1;">
+      <div class="card g">
+        <div class="card-lbl g">Why one step is sufficient</div>
+        <p>\(V^*(s')\) contains the optimal expected return for every state reachable from \(s'\). By recursive definition it encodes all future rewards to the horizon. The agent therefore needs to evaluate only the immediate step.</p>
+        <div class="math-box g" style="margin-top:12px;">$$\pi^*(s) = \arg\max_a \!\left[\,r(a,s) + \gamma\sum_{s'} P(s'|s,a)\,V^*(s')\right]$$</div>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div class="card-lbl">Policy search (class slide 32)</div>
+        <p>It is sufficient to learn either the optimal policy \(\pi^*\) directly (policy-based) or the optimal action-value function \(Q^*\) (value-based). When the MDP is known, these are addressed by policy iteration and value iteration.</p>
+      </div>
+    </div>
+    <div class="col" style="flex:0.82;">
+      <p style="font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:10px;">Gridworld — \(V^*\) values</p>
+      <div class="gridworld">
+        <div class="gc v-lo"><span class="gv">0.24</span><span class="gl">s₁₃</span></div>
+        <div class="gc v-lo"><span class="gv">0.35</span><span class="gl">s₁₄</span></div>
+        <div class="gc v-lo"><span class="gv">0.52</span><span class="gl">s₁₅</span></div>
+        <div class="gc v-mid"><span class="gv">0.72</span><span class="gl">s₁₆</span></div>
+        <div class="gc v-lo"><span class="gv">0.31</span><span class="gl">s₉</span></div>
+        <div class="gc v-lo"><span class="gv">0.45</span><span class="gl">s₁₀</span></div>
+        <div class="gc v-mid"><span class="gv">0.65</span><span class="gl">s₁₁</span></div>
+        <div class="gc v-mid"><span class="gv">0.81</span><span class="gl">s₁₂</span></div>
+        <div class="gc v-lo"><span class="gv">0.40</span><span class="gl">s₅</span></div>
+        <div class="gc v-mid"><span class="gv">0.58</span><span class="gl">s₆</span></div>
+        <div class="gc v-mid"><span class="gv">0.81</span><span class="gl">s₇</span></div>
+        <div class="gc v-hi"><span class="gv">0.90</span><span class="gl">s₈</span></div>
+        <div class="gc v-mid"><span class="gv">0.51</span><span class="gl">s₁</span></div>
+        <div class="gc v-mid"><span class="gv">0.72</span><span class="gl">s₂</span></div>
+        <div class="gc v-hi"><span class="gv">0.90</span><span class="gl">s₃</span></div>
+        <div class="gc goal"><span class="gv">★</span><span class="gl">1.00</span></div>
+      </div>
+      <p style="font-size:11px; color:var(--muted); margin-top:8px;">The greedy policy selects the highest-value neighbour at each step and is guaranteed to reach ★.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── 4-C: Value and Policy Iteration ───────────── -->
+<div class="slide"
+  data-note="Both algorithms converge to the unique V* by the Banach fixed-point theorem. Value iteration applies the Bellman optimality operator directly; policy iteration alternates between full evaluation and greedy improvement.">
+  <div class="badge g">Section 4 · Optimal Decision Making</div>
+  <h2>Value iteration and policy iteration both converge to <span class="g">\(\pi^*\)</span> by applying the Bellman operator iteratively</h2>
+  <div class="row" style="align-items:stretch; margin-top:6px;">
+    <div class="card g col">
+      <div class="card-lbl g">Value Iteration (class slide 32)</div>
+      <div class="math-box g">$$V_{k+1}(s) = \max_a\!\left[r(a,s) + \gamma \sum_{s'} P(s'|s,a)\,V_k(s')\right]$$</div>
+      <p>All states are swept repeatedly using the Bellman optimality operator as the update rule. The procedure repeats until \(\|V_{k+1}-V_k\|_\infty < \varepsilon\).</p>
+      <p style="color:var(--g); font-size:13px; margin-top:8px;">Straightforward to implement; one sweep per iteration.</p>
+    </div>
+    <div class="card b col">
+      <div class="card-lbl b">Policy Iteration (class slide 32)</div>
+      <p><strong>1. Evaluate:</strong> solve \(V^\pi\) exactly for the current policy \(\pi\).</p>
+      <div class="math-box b" style="margin:10px 0;">$$\pi'(s) = \arg\max_a\!\left[r(a,s) + \gamma\sum_{s'} P(s'|s,a)\,V^\pi(s')\right]$$</div>
+      <p><strong>2. Improve:</strong> set \(\pi \leftarrow \pi'\) and repeat until \(\pi\) is stable.</p>
+      <p style="color:var(--b); font-size:13px; margin-top:8px;">Fewer outer iterations; each evaluation step is more costly.</p>
+    </div>
+  </div>
+  <p class="sub" style="margin-top:14px;">Both converge to the unique \(V^*\) by the Banach fixed-point theorem.</p>
+</div>
+
+<!-- ══ SUMMARY ══════════════════════════════════════ -->
+<div class="slide"
+  data-note="The four sections connect naturally: value functions evaluate policies, policies are improved greedily, and Bellman equations make the full optimisation tractable.">
+  <div class="badge g">Summary</div>
+  <h2>Four ideas that constitute value-based reinforcement learning</h2>
+  <div class="row" style="margin-top:22px; flex-wrap:wrap; gap:16px;">
+    <div class="card r" style="flex:1; min-width:180px;">
+      <div class="card-lbl r">1 · Core Definitions</div>
+      <p>\(V_\pi(s)\) estimates how desirable a state is. \(Q_\pi(a,s)\) evaluates specific actions and is critical for choosing between them without a transition model.</p>
+    </div>
+    <div class="card o" style="flex:1; min-width:180px;">
+      <div class="card-lbl o">2 · Policies</div>
+      <p>\(\pi\) maps states to actions or distributions. Stochastic policies explore; deterministic policies exploit. The goal is to find \(\pi^*\) that maximises \(V_\pi(s)\) for all \(s\).</p>
+    </div>
+    <div class="card" style="flex:1; min-width:180px; border-color:var(--b-bd);">
+      <div class="card-lbl b">3 · Bellman</div>
+      <p>The value function satisfies \(V(s) = \mathbb{E}[r] + \gamma\,\mathbb{E}[V(s')]\). In matrix form: \(\mathbf{V} = \mathbf{r} + \gamma\mathbf{P}\mathbf{V}\). The discount \(\gamma\) controls planning horizon.</p>
+    </div>
+    <div class="card g" style="flex:1; min-width:180px;">
+      <div class="card-lbl g">4 · Optimality</div>
+      <p>Greedification of \(Q^*\) yields \(\pi^*\) without requiring a transition model. Value and policy iteration both converge to the unique \(V^*\).</p>
+    </div>
+  </div>
+  <p class="sub" style="margin-top:22px;"><strong>Up next:</strong> Q-Learning and TD(\(\lambda\)): implementing these equations in code.</p>
+</div>
+
+</div><!-- /.deck -->
+
+<nav>
+  <button id="prev" onclick="go(-1)" disabled>‹</button>
+  <span id="slide-counter"></span>
+  <button id="next" onclick="go(1)">›</button>
+</nav>
+
+<div class="dots" id="dots"></div>
+<div class="speaker-note" id="note"></div>
+<button class="note-btn" onclick="toggleNote()">Notes [N]</button>
+
+<script>
+  const slides  = document.querySelectorAll('.slide');
+  const counter = document.getElementById('slide-counter');
+  const dotsEl  = document.getElementById('dots');
+  const noteEl  = document.getElementById('note');
+  let cur = 0, noteOn = false;
+
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' on' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    slides[cur].classList.remove('active');
+    dotsEl.children[cur].classList.remove('on');
+    cur = Math.max(0, Math.min(n, slides.length - 1));
+    slides[cur].classList.add('active');
+    dotsEl.children[cur].classList.add('on');
+    counter.textContent = (cur + 1) + ' / ' + slides.length;
+    document.getElementById('prev').disabled = cur === 0;
+    document.getElementById('next').disabled = cur === slides.length - 1;
+    if (noteOn) showNote();
+  }
+
+  function go(d) { goTo(cur + d); }
+  function showNote() { noteEl.textContent = slides[cur].dataset.note || ''; }
+  function toggleNote() {
+    noteOn = !noteOn;
+    noteEl.classList.toggle('on', noteOn);
+    if (noteOn) showNote();
+  }
+  const sunSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>`;
+  const moonSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>`;
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isD = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isD ? 'light' : 'dark');
+    document.getElementById('theme-icon').innerHTML = isD ? moonSVG : sunSVG;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight','ArrowDown',' '].includes(e.key)) { e.preventDefault(); go(1); }
+    if (['ArrowLeft','ArrowUp'].includes(e.key))        { e.preventDefault(); go(-1); }
+    if (e.key === 'n' || e.key === 'N') toggleNote();
+    if (e.key === 't' || e.key === 'T') toggleTheme();
+  });
+
+  goTo(0);
+</script>
+</body>
+</html>
