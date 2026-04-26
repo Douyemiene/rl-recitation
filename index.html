@@ -489,9 +489,40 @@ nav button:disabled { color:var(--border); cursor:default; }
   line-height:1.65; z-index:200; transition: background .25s;
 }
 .speaker-note.on { display:block; }
+
+/* ── mobile gate ─────────────────────────── */
+.mobile-gate {
+  display: none;
+  position: fixed; inset: 0; z-index: 9999;
+  background: #070709;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 40px;
+}
+.mobile-gate svg { width: 48px; height: 48px; color: #C41230; margin-bottom: 24px; }
+.mobile-gate h2 {
+  font-family: 'Barlow Condensed', system-ui, sans-serif;
+  font-size: 28px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #ffffff; margin-bottom: 12px;
+}
+.mobile-gate p { font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.6; max-width: 300px; }
+
+@media (max-width: 768px) {
+  .mobile-gate { display: flex; }
+}
 </style>
 </head>
 <body>
+
+<div class="mobile-gate">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="3" width="20" height="14" rx="2"/>
+    <line x1="8" y1="21" x2="16" y2="21"/>
+    <line x1="12" y1="17" x2="12" y2="21"/>
+  </svg>
+  <h2>Open on a computer</h2>
+  <p>This presentation is designed for desktop viewing and does not work on mobile screens.</p>
+</div>
 
 <!-- CMU logo: fixed across all slides -->
 <div class="ts-logo-wrap">
